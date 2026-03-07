@@ -3,10 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AI Fitness Nexus 6.0 (Cloud)</title>
+    <title>AI Fitness Nexus 6.2 (Version Display)</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
     <style>
         /* --- DESIGN VARIABLEN --- */
         :root {
@@ -20,14 +19,13 @@
             --danger: #ef4444;
             --input-bg: #334155;
         }
-
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
         body { background-color: var(--bg-dark); color: var(--text-main); height: 100vh; display: flex; overflow: hidden; }
 
         /* --- UI ELEMENTE --- */
         input, select {
             background: var(--input-bg); border: 1px solid #475569; color: white;
-            padding: 0.75rem; border-radius: 0.5rem; width: 100%; margin-bottom: 10px; font-size: 16px; 
+            padding: 0.75rem; border-radius: 0.5rem; width: 100%; margin-bottom: 10px; font-size: 16px;
         }
         input:focus, select:focus { outline: 1px solid var(--primary); }
 
@@ -39,30 +37,45 @@
         button {
             background: linear-gradient(135deg, var(--secondary), var(--primary));
             border: none; padding: 0.75rem; color: white; border-radius: 0.5rem;
-            cursor: pointer; font-weight: bold; transition: 0.3s; width: 100%; 
+            cursor: pointer; font-weight: bold; transition: 0.2s; width: 100%; position: relative;
         }
         button:hover { opacity: 0.9; transform: translateY(-1px); }
+        button:active { transform: translateY(0); }
         button.secondary { background: #475569; }
         button.save-btn { background: var(--success); margin-top: 10px; }
-        
+        /* Loading State für Buttons */
+        button.loading { color: transparent; pointer-events: none; }
+        button.loading::after {
+            content: ""; position: absolute; width: 20px; height: 20px; top: 50%; left: 50%; margin: -10px 0 0 -10px;
+            border: 3px solid rgba(255,255,255,0.3); border-top: 3px solid white; border-radius: 50%; animation: spinBtn 0.8s linear infinite;
+        }
+        @keyframes spinBtn { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
         .timer-btn {
             background: transparent; border: 1px solid var(--primary); color: var(--primary);
             width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
-            cursor: pointer; margin-left: 5px;
+            cursor: pointer; margin-left: 5px; flex-shrink: 0;
         }
         .timer-btn:hover { background: rgba(0, 242, 255, 0.1); }
 
         /* --- LAYOUT --- */
         .sidebar {
             width: 260px; background: var(--bg-panel); padding: 2rem 1rem;
-            display: flex; flex-direction: column; border-right: 1px solid #334155;
+            display: flex; flex-direction: column; border-right: 1px solid #334155; position: relative;
         }
         .brand { font-size: 1.5rem; font-weight: bold; color: var(--primary); margin-bottom: 3rem; display: flex; gap: 10px; align-items: center; }
         .nav-item {
-            padding: 1rem; color: var(--text-muted); text-decoration: none; border-radius: 0.5rem; margin-bottom: 0.5rem; 
+            padding: 1rem; color: var(--text-muted); text-decoration: none; border-radius: 0.5rem; margin-bottom: 0.5rem;
             cursor: pointer; display: flex; gap: 10px; align-items: center; transition: 0.3s;
         }
         .nav-item:hover, .nav-item.active { background: rgba(0, 242, 255, 0.1); color: var(--primary); }
+        
+        /* Version Badge Sidebar */
+        .version-badge {
+            position: absolute; bottom: 10px; right: 10px; 
+            font-size: 0.7rem; color: var(--text-muted); opacity: 0.5;
+            font-family: monospace;
+        }
 
         .main-content { flex: 1; padding: 2rem; overflow-y: auto; padding-bottom: 100px; position: relative; }
         .bottom-nav { display: none; }
@@ -73,21 +86,21 @@
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
         .grid-dashboard { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; }
-        .card { background: var(--bg-panel); border-radius: 1rem; padding: 1.5rem; border: 1px solid #334155; margin-bottom: 20px; position: relative; }
+        .card { background: var(--bg-panel); border-radius: 1rem; padding: 1.75rem; border: 1px solid #334155; margin-bottom: 20px; position: relative; }
         h2, h3, h4 { margin-bottom: 1rem; color: var(--text-main); }
         .highlight { color: var(--primary); }
 
         /* --- TRACKER --- */
         .tracker-row {
-            display: grid; grid-template-columns: 1fr 1fr 2fr auto; gap: 5px; margin-top: 10px; padding: 10px; 
+            display: grid; grid-template-columns: 1fr 1fr 1.5fr auto; gap: 8px; margin-top: 10px; padding: 12px;
             background: rgba(0,0,0,0.2); border-radius: 0.5rem; align-items: center;
         }
-        .tracker-row input, .tracker-row select { margin-bottom: 0; padding: 0.5rem; font-size: 0.85rem; }
+        .tracker-row input, .tracker-row select { margin-bottom: 0; padding: 0.6rem; font-size: 0.9rem; }
         .workout-item { border-bottom: 1px solid #334155; padding: 1rem 0; }
 
         /* --- TIMER --- */
         #timer-overlay {
-            position: fixed; bottom: 20px; right: 20px; width: 200px; 
+            position: fixed; bottom: 20px; right: 20px; width: 200px;
             background: rgba(15, 23, 42, 0.95); border: 2px solid var(--primary);
             border-radius: 1rem; padding: 1rem; text-align: center; z-index: 2000;
             display: none; box-shadow: 0 0 20px rgba(0, 242, 255, 0.3);
@@ -124,9 +137,10 @@
             .bottom-nav-item.active { color: var(--primary); }
             .main-content { padding: 1rem; padding-bottom: 100px; }
             .grid-dashboard { grid-template-columns: 1fr; }
-            .tracker-row { grid-template-columns: 1fr 1fr auto; flex-wrap: wrap; }
-            .tracker-row select { width: 100%; grid-column: span 3; margin-top: 5px; }
-            .tracker-row .timer-btn { grid-column: 3; }
+            .tracker-row { grid-template-columns: 1fr 1fr 1fr; gap: 10px; padding: 15px; }
+            .tracker-row input, .tracker-row select { font-size: 16px; padding: 0.8rem; }
+            .tracker-row .timer-btn { grid-column: 3; justify-self: end; }
+            .tracker-row select.t-rpe { grid-column: span 2; }
             #timer-overlay { bottom: 90px; right: 10px; left: 10px; width: auto; }
         }
 
@@ -136,6 +150,9 @@
             background: rgba(15, 23, 42, 0.95); display: flex; justify-content: center; align-items: center; z-index: 1000;
         }
         .login-box { width: 90%; max-width: 350px; background: var(--bg-panel); padding: 2rem; border-radius: 1rem; border: 1px solid var(--primary); text-align: center; }
+        .app-version {
+            position: absolute; bottom: 10px; right: 10px; color: rgba(255,255,255,0.2); font-size: 0.7rem;
+        }
     </style>
 </head>
 <body>
@@ -153,6 +170,7 @@
     <div id="login-modal">
         <div class="login-box">
             <h2 class="highlight">AI FITNESS NEXUS</h2>
+            <div style="font-size: 0.8rem; color: var(--primary); margin-bottom: 15px; border: 1px solid var(--primary); display: inline-block; padding: 2px 8px; border-radius: 12px;">v6.2</div>
             <p style="color:var(--text-muted); font-size:0.8rem; margin-bottom:1rem;">Cloud Sync Active <i class="fa-solid fa-cloud"></i></p>
             <input type="text" id="username" placeholder="Dein Name (Cloud ID)">
             <div style="display:flex; align-items:center; margin-bottom:1rem; justify-content:center; gap:5px;">
@@ -161,6 +179,7 @@
             </div>
             <button id="login-btn">System Starten</button>
         </div>
+        <div class="app-version">Build v6.2</div>
     </div>
 
     <nav class="sidebar">
@@ -170,6 +189,7 @@
         <a class="nav-item" data-target="plan" onclick="window.switchView('plan')"><i class="fa-solid fa-dumbbell"></i> Plan & Track</a>
         <a class="nav-item" data-target="nutrition" onclick="window.switchView('nutrition')"><i class="fa-solid fa-carrot"></i> Essen</a>
         <div style="margin-top: auto;"><a class="nav-item" onclick="window.logout()"><i class="fa-solid fa-power-off"></i> Logout</a></div>
+        <div class="version-badge">v6.2</div>
     </nav>
 
     <div class="bottom-nav">
@@ -184,17 +204,17 @@
             <div style="margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center;">
                 <h1>Hallo, <span id="user-display" class="highlight">Athlet</span></h1>
                 <div id="bmi-badge" style="background: var(--input-bg); padding: 5px 15px; border-radius: 20px; font-size: 0.8rem; display:none;">BMI: --</div>
-                <i class="fa-solid fa-power-off" onclick="window.logout()" style="display:none; color:var(--danger);" id="mobile-logout"></i>
+                <i class="fa-solid fa-power-off" onclick="window.logout()" style="display:none; color:var(--danger); cursor:pointer;" id="mobile-logout"></i>
             </div>
             <div class="grid-dashboard">
                 <div>
                     <div class="card">
                         <h3><i class="fa-solid fa-crosshairs"></i> Fokus heute</h3>
-                        <div class="muscle-grid" id="muscle-container"></div>
+                        <div class="muscle-grid" id="muscle-container" style="display:flex; flex-wrap:wrap; gap:10px;"></div>
                     </div>
                     <div class="card" style="border-left: 4px solid var(--secondary); background: linear-gradient(90deg, rgba(112,0,255,0.05), transparent);">
                         <h3><i class="fa-solid fa-brain"></i> KI Live-Analyse</h3>
-                        <div id="ai-output" style="font-family:'Courier New', monospace; font-size:0.9rem;">Warte auf Eingabe...</div>
+                        <div id="ai-output" style="font-family:'Courier New', monospace; font-size:0.9rem;">Wähle Muskeln für Fokus-Analyse...</div>
                     </div>
                 </div>
                 <div>
@@ -202,7 +222,7 @@
                         <h3>Kalorienziel</h3>
                         <div style="text-align:center;">
                             <span id="cal-target" style="font-size: 2.5rem; font-weight:bold; color:var(--primary)">0</span>
-                            <div style="color:var(--text-muted)">kcal (Aufbau)</div>
+                            <div style="color:var(--text-muted)">kcal (Aufbau Richtwert)</div>
                         </div>
                     </div>
                     <div class="card">
@@ -219,54 +239,64 @@
             <h1>Smart Coach & Tracker</h1>
             <div class="card" style="border: 1px solid var(--secondary);">
                 <h3><i class="fa-solid fa-robot"></i> Daily Check-In</h3>
-                <div style="display:flex; gap:10px; align-items:center;">
-                    <label style="width:auto; margin:0;">Energie:</label><input type="range" id="energy-level" min="1" max="10" value="5">
+                <div style="display:flex; gap:10px; align-items:center; margin-bottom:10px;">
+                    <label style="width:auto; margin:0; min-width:60px;">Energie:</label>
+                    <input type="range" id="energy-level" min="1" max="10" value="5" style="flex:1;">
+                    <span id="energy-val" style="color:var(--primary); font-weight:bold;">5</span>
                 </div>
-                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:10px;">
-                    <select id="soreness-level"><option value="none">Frisch</option><option value="low">Leichter Kater</option><option value="high">Starker Kater</option></select>
-                    <select id="progress-trend"><option value="steady">Gehalten</option><option value="up">Gesteigert</option><option value="down">Schlecht</option></select>
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                    <select id="soreness-level"><option value="none">Frisch (Kein Kater)</option><option value="low">Leichter Muskelkater</option><option value="high">Starker Muskelkater</option></select>
+                    <select id="progress-trend"><option value="steady">Trend: Gehalten</option><option value="up">Trend: Gesteigert</option><option value="down">Trend: Schlecht</option></select>
                 </div>
-                <button onclick="window.calculateAIPlan()" style="margin-top:10px;">Plan Erstellen</button>
-                <div id="ai-recommendation" style="margin-top:15px; padding:10px; background:rgba(112,0,255,0.1); border-radius:5px; display:none;"></div>
+                <button onclick="window.calculateAIPlan()" style="margin-top:15px;">Intelligenten Plan Erstellen</button>
+                <div id="ai-recommendation" style="margin-top:15px; padding:10px; background:rgba(112,0,255,0.1); border-radius:5px; display:none; border-left:3px solid var(--secondary);"></div>
             </div>
             <div class="card">
                 <h4>Heutiges Workout</h4>
-                <div id="routine-container"><p style="color:var(--text-muted); text-align:center;">Bitte oben Check-In machen.</p></div>
-                <button id="save-session-btn" class="save-btn" style="display:none;" onclick="window.saveSession()"><i class="fa-solid fa-floppy-disk"></i> In Cloud speichern</button>
+                <div id="routine-container"><p style="color:var(--text-muted); text-align:center; padding:20px;">Bitte oben Check-In machen für KI-Vorschläge.</p></div>
+                <button id="save-session-btn" class="save-btn" style="display:none;" onclick="window.saveSession(this)">
+                    <i class="fa-solid fa-floppy-disk"></i> <span>In Cloud speichern</span>
+                </button>
             </div>
         </div>
 
         <div id="nutrition" class="view-section">
-            <div style="display:flex; justify-content:space-between;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
                 <h1>Histamin-Frei</h1>
-                <button class="secondary" onclick="window.generateNutrition()" style="width:auto;">Neu</button>
+                <button class="secondary" onclick="window.generateNutrition()" style="width:auto; padding: 0.5rem 1rem;"><i class="fa-solid fa-arrows-rotate"></i> Neu</button>
             </div>
-            <div class="card">
-                <h3>Einkaufsliste</h3>
-                <div id="shopping-list" style="color:var(--text-muted); font-size:0.9rem;">...</div>
+            <div class="card" style="margin-bottom:20px;">
+                <h3><i class="fa-solid fa-basket-shopping"></i> Einkaufsliste (Woche)</h3>
+                <div id="shopping-list" style="color:var(--text-muted); font-size:0.9rem; line-height:1.4;">Zuerst Plan generieren...</div>
             </div>
-            <div class="nutrition-grid" id="meal-container"></div>
+            <div class="nutrition-grid" id="meal-container" style="display:grid; gap:10px;"></div>
         </div>
 
         <div id="profile" class="view-section">
-            <h1>Profil</h1>
+            <h1>Profil Einstellungen</h1>
             <div class="card">
-                <label>Gewicht (kg)</label><input type="number" id="p-weight" placeholder="80">
-                <label>Größe (cm)</label><input type="number" id="p-height" placeholder="180">
-                <label>Alter</label><input type="number" id="p-age" placeholder="30">
-                <label>Geschlecht</label><select id="p-gender"><option value="male">Mann</option><option value="female">Frau</option></select>
-                <label>Aktivität</label><select id="p-activity"><option value="1.2">Büro</option><option value="1.55">Sportlich</option></select>
-                <button onclick="window.saveProfile()">In Cloud Speichern</button>
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px;">
+                    <div><label>Gewicht (kg)</label><input type="number" id="p-weight" placeholder="z.B. 80"></div>
+                    <div><label>Größe (cm)</label><input type="number" id="p-height" placeholder="z.B. 180"></div>
+                    <div><label>Alter</label><input type="number" id="p-age" placeholder="z.B. 30"></div>
+                    <div><label>Geschlecht</label><select id="p-gender"><option value="male">Mann</option><option value="female">Frau</option></select></div>
+                </div>
+                <label style="margin-top:10px; display:block;">Aktivitätslevel</label>
+                <select id="p-activity">
+                    <option value="1.2">Sedentär (Bürojob, wenig Sport)</option>
+                    <option value="1.375">Leicht Aktiv (1-3x Sport/Woche)</option>
+                    <option value="1.55">Moderat Aktiv (3-5x Sport/Woche)</option>
+                    <option value="1.725">Sehr Aktiv (6-7x Sport/Woche)</option>
+                </select>
+                <button onclick="window.saveProfile(this)" style="margin-top:20px;">Profil in Cloud Speichern</button>
             </div>
         </div>
     </main>
 
     <script type="module">
-        // Import von Firebase Modulen (via CDN für Nutzung ohne Build-Tools)
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getFirestore, doc, getDoc, setDoc, updateDoc, arrayUnion } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-        // DEINE FIREBASE KONFIGURATION (EINGEFÜGT)
         const firebaseConfig = {
           apiKey: "AIzaSyBjWevFGSdW-6tQdWF02zxPh_PrMJihd0M",
           authDomain: "trainingsplan-514cb.firebaseapp.com",
@@ -276,20 +306,30 @@
           appId: "1:992636219644:web:0efc0aefcaaf1498d86779"
         };
 
-        // Initialize Firebase
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        // --- GLOBAL VARIABLES ---
-        let userProfile = { weight: 0, height: 0, age: 0, gender: 'male', activity: 1.2 };
-        let sessionHistory = [];
-        let selectedMuscles = [];
-        let currentUsername = "";
-        let progressChartInstance = null;
-        let timerInterval = null;
-        let timerSeconds = 0;
+        // --- CENTRAL APPLICATION STATE ---
+        const appState = {
+            userProfile: { weight: 0, height: 0, age: 0, gender: 'male', activity: 1.2 },
+            sessionHistory: [],
+            selectedMuscles: [],
+            currentUsername: "",
+            chartInstance: null,
+            timer: { interval: null, seconds: 0 },
+            musclesDb: [
+                { id: 'chest', label: 'Brust', exercise: 'Bankdrücken' },
+                { id: 'back', label: 'Rücken', exercise: 'Latzug' },
+                { id: 'legs', label: 'Beine', exercise: 'Kniebeugen' },
+                { id: 'shoulders', label: 'Schulter', exercise: 'Military Press' },
+                { id: 'biceps', label: 'Bizeps', exercise: 'Curls' },
+                { id: 'triceps', label: 'Trizeps', exercise: 'Pushdowns' },
+                { id: 'abs', label: 'Bauch', exercise: 'Planks' }
+            ],
+             histSafeFoods: { carbs: ['Kartoffeln', 'Reis', 'Haferflocken', 'Quinoa'], protein: ['Huhn', 'Pute', 'Rind (frisch)', 'Seelachs', 'Eier'], veg: ['Brokkoli', 'Karotte', 'Zucchini', 'Gurke', 'Paprika'] }
+        };
 
-        // --- GLOBAL FUNCTIONS (Attached to Window for HTML access) ---
+        // --- GLOBAL FUNCTIONS ---
         window.switchView = (viewId) => {
             document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
             document.getElementById(viewId).classList.add('active');
@@ -298,36 +338,34 @@
             const mLink = document.querySelector(`.bottom-nav-item[data-target="${viewId}"]`);
             if(dLink) dLink.classList.add('active');
             if(mLink) mLink.classList.add('active');
+            if(viewId === 'dashboard') updateChartData();
         };
 
         window.logout = () => {
-            localStorage.clear(); sessionStorage.clear(); location.reload();
+            localStorage.removeItem('fit_user'); localStorage.removeItem('fit_li');
+            sessionStorage.clear(); location.reload();
         };
 
         window.login = async () => {
             const nameInput = document.getElementById('username').value;
             if(!nameInput) return alert("Bitte Namen eingeben");
-            
-            const sanitizedUser = nameInput.trim().toLowerCase();
-            const stay = document.getElementById('stay-logged-in').checked;
+            const sanitizedUser = nameInput.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+            if(sanitizedUser.length < 3) return alert("Name zu kurz (min 3 Zeichen).");
 
+            const stay = document.getElementById('stay-logged-in').checked;
             if(stay) {
                 localStorage.setItem('fit_user', sanitizedUser);
                 localStorage.setItem('fit_li', 'true');
             } else {
                 sessionStorage.setItem('fit_user', sanitizedUser);
             }
-
             await loadUserData(sanitizedUser);
-            document.getElementById('login-modal').style.display = 'none';
         };
 
         // --- FIREBASE LOGIC ---
         async function loadUserData(userId) {
-            currentUsername = userId;
+            appState.currentUsername = userId;
             document.getElementById('user-display').innerText = userId.charAt(0).toUpperCase() + userId.slice(1);
-            
-            // Show Loading
             document.getElementById('loading-overlay').style.display = 'flex';
 
             try {
@@ -336,57 +374,59 @@
 
                 if (docSnap.exists()) {
                     const data = docSnap.data();
-                    if(data.profile) userProfile = data.profile;
-                    if(data.history) sessionHistory = data.history;
+                    if(data.profile) appState.userProfile = data.profile;
+                    if(data.history) appState.sessionHistory = data.history;
                 } else {
-                    // New User -> Create minimal Doc
-                    await setDoc(docRef, { profile: userProfile, history: [] });
+                    await setDoc(docRef, { profile: appState.userProfile, history: [] });
                 }
-                
-                // Update UI with loaded data
+
                 fillProfileInputs();
                 analyzeProfile();
                 updateChartData();
                 updateLastSessionInfo();
+                document.getElementById('login-modal').style.display = 'none';
+                document.getElementById('mobile-logout').style.display = 'block';
 
             } catch (error) {
                 console.error("Error getting document:", error);
-                alert("Fehler beim Laden der Cloud-Daten. Offline?");
+                alert("Fehler beim Laden der Cloud-Daten. Internetverbindung prüfen.");
             } finally {
                 document.getElementById('loading-overlay').style.display = 'none';
             }
         }
 
-        window.saveProfile = async () => {
-            if(!currentUsername) return alert("Nicht eingeloggt!");
-            
-            userProfile.weight = parseFloat(document.getElementById('p-weight').value) || 0;
-            userProfile.height = parseFloat(document.getElementById('p-height').value) || 0;
-            userProfile.age = parseFloat(document.getElementById('p-age').value) || 0;
-            userProfile.gender = document.getElementById('p-gender').value;
-            userProfile.activity = parseFloat(document.getElementById('p-activity').value);
+        window.saveProfile = async (btnElement) => {
+            if(!appState.currentUsername) return alert("Nicht eingeloggt!");
+            setButtonLoading(btnElement, true);
+
+            appState.userProfile.weight = parseFloat(document.getElementById('p-weight').value) || 0;
+            appState.userProfile.height = parseFloat(document.getElementById('p-height').value) || 0;
+            appState.userProfile.age = parseFloat(document.getElementById('p-age').value) || 0;
+            appState.userProfile.gender = document.getElementById('p-gender').value;
+            appState.userProfile.activity = parseFloat(document.getElementById('p-activity').value);
 
             try {
-                const docRef = doc(db, "users", currentUsername);
-                await setDoc(docRef, { profile: userProfile }, { merge: true });
+                const docRef = doc(db, "users", appState.currentUsername);
+                await setDoc(docRef, { profile: appState.userProfile }, { merge: true });
                 analyzeProfile();
-                alert("Profil in der Cloud gespeichert!");
             } catch (e) {
                 alert("Fehler beim Speichern: " + e.message);
+            } finally {
+                setButtonLoading(btnElement, false);
             }
         };
 
-        window.saveSession = async () => {
-            if(!currentUsername) return alert("Nicht eingeloggt!");
+        window.saveSession = async (btnElement) => {
+            if(!appState.currentUsername) return alert("Nicht eingeloggt!");
 
             const items = document.querySelectorAll('.workout-item');
-            let sessionData = { 
-                date: new Date().toLocaleDateString(), 
-                timestamp: Date.now(),
-                exercises: [], 
-                avgRpe: 0, 
-                totalVolume: 0 
-            };
+            let sessionData = {
+                 date: new Date().toLocaleDateString('de-DE', { year: 'numeric', month: '2-digit', day: '2-digit' }),
+                 timestamp: Date.now(),
+                 exercises: [],
+                 avgRpe: 0,
+                 totalVolume: 0
+             };
             let totalRpe = 0; let count = 0;
 
             items.forEach(item => {
@@ -394,176 +434,224 @@
                 const w = parseFloat(item.querySelector('.t-weight').value) || 0;
                 const r = parseFloat(item.querySelector('.t-reps').value) || 0;
                 const rpe = parseInt(item.querySelector('.t-rpe').value);
-                
+
                 if(w > 0 && r > 0) {
                     sessionData.exercises.push({ name, weight: w, reps: r, rpe: rpe });
-                    totalRpe += rpe; 
+                    totalRpe += rpe;
                     sessionData.totalVolume += (w * r);
                     count++;
                 }
             });
 
-            if(count === 0) return alert("Bitte Gewichte eintragen!");
+            if(count === 0) return alert("Bitte mindestens eine Übung mit Gewicht und Reps eintragen!");
             sessionData.avgRpe = totalRpe / count;
 
+            setButtonLoading(btnElement, true);
+
             try {
-                // Update Local
-                sessionHistory.push(sessionData);
-                // Update Cloud
-                const docRef = doc(db, "users", currentUsername);
-                await updateDoc(docRef, {
-                    history: arrayUnion(sessionData)
-                });
-                
-                alert(`Cloud-Upload erfolgreich! Volumen: ${sessionData.totalVolume}kg`);
+                appState.sessionHistory.push(sessionData);
+                const docRef = doc(db, "users", appState.currentUsername);
+                await updateDoc(docRef, { history: arrayUnion(sessionData) });
+
                 updateChartData();
                 updateLastSessionInfo();
+                document.getElementById('routine-container').innerHTML = '<p style="color:var(--success);text-align:center;padding:20px;"><i class="fa-solid fa-check-circle"></i> Training erfolgreich gespeichert!</p>';
+                document.getElementById('save-session-btn').style.display = 'none';
+
             } catch (e) {
                 alert("Cloud Fehler: " + e.message);
+                appState.sessionHistory.pop();
+            } finally {
+                setButtonLoading(btnElement, false);
             }
         };
 
         // --- HELPER FUNCTIONS ---
+        function setButtonLoading(btn, isLoading) {
+            if(isLoading) {
+                btn.classList.add('loading');
+                btn.dataset.originalText = btn.innerHTML;
+                btn.innerHTML = 'Speichert...';
+            } else {
+                btn.classList.remove('loading');
+                btn.innerHTML = btn.dataset.originalText;
+            }
+        }
+
         function fillProfileInputs() {
-            document.getElementById('p-weight').value = userProfile.weight || '';
-            document.getElementById('p-height').value = userProfile.height || '';
-            document.getElementById('p-age').value = userProfile.age || '';
-            document.getElementById('p-gender').value = userProfile.gender;
-            document.getElementById('p-activity').value = userProfile.activity;
+            document.getElementById('p-weight').value = appState.userProfile.weight || '';
+            document.getElementById('p-height').value = appState.userProfile.height || '';
+            document.getElementById('p-age').value = appState.userProfile.age || '';
+            document.getElementById('p-gender').value = appState.userProfile.gender;
+            document.getElementById('p-activity').value = appState.userProfile.activity;
         }
 
         function analyzeProfile() {
-            if(userProfile.weight===0) return;
-            const bmr = (10*userProfile.weight)+(6.25*userProfile.height)-(5*userProfile.age)+(userProfile.gender==='male'?5:-161);
-            document.getElementById('cal-target').innerText = Math.round(bmr*userProfile.activity)+300;
-            document.getElementById('bmi-badge').innerText = "BMI: "+(userProfile.weight/((userProfile.height/100)**2)).toFixed(1);
+            if(appState.userProfile.weight===0 || appState.userProfile.height===0) return;
+            let bmr = (10 * appState.userProfile.weight) + (6.25 * appState.userProfile.height) - (5 * appState.userProfile.age);
+            bmr += (appState.userProfile.gender === 'male' ? 5 : -161);
+            const tdee = bmr * appState.userProfile.activity;
+            document.getElementById('cal-target').innerText = Math.round(tdee + 250);
+
+            const bmi = (appState.userProfile.weight / ((appState.userProfile.height/100)**2)).toFixed(1);
+            document.getElementById('bmi-badge').innerText = "BMI: " + bmi;
             document.getElementById('bmi-badge').style.display = 'block';
         }
 
         function updateChartData() {
-            if(!progressChartInstance) return;
-            // Sort by time just in case
-            const sorted = [...sessionHistory].sort((a,b) => a.timestamp - b.timestamp);
-            const recent = sorted.slice(-7);
-            
+            if(!appState.chartInstance) return;
+            const sorted = [...appState.sessionHistory].sort((a,b) => a.timestamp - b.timestamp);
+            const recent = sorted.slice(-10);
+
             const labels = recent.map(s => s.date.slice(0, 5));
             const data = recent.map(s => s.totalVolume);
 
-            progressChartInstance.data.labels = labels;
-            progressChartInstance.data.datasets[0].data = data;
-            progressChartInstance.update();
+            appState.chartInstance.data.labels = labels;
+            appState.chartInstance.data.datasets[0].data = data;
+            appState.chartInstance.update();
         }
 
         function updateLastSessionInfo() {
             const info = document.getElementById('last-session-info');
-            if(sessionHistory.length > 0) {
-                const last = sessionHistory[sessionHistory.length-1];
-                info.innerHTML = `Letztes Training: ${last.date}<br>Volumen: <strong>${last.totalVolume} kg</strong>`;
+            if(appState.sessionHistory.length > 0) {
+                const last = appState.sessionHistory[appState.sessionHistory.length-1];
+                info.innerHTML = `Letztes Training: ${last.date}<br>Volumen: <strong>${last.totalVolume.toFixed(0)} kg</strong> (Ø RPE ${last.avgRpe.toFixed(1)})`;
             } else {
                 info.innerText = "Keine Daten in der Cloud.";
             }
         }
 
-        // --- STANDARD APP LOGIC (Muscles, Plan, etc.) ---
-        const muscles = [
-            { id: 'chest', label: 'Brust', exercise: 'Bankdrücken', guide: 'Füße fest, Rücken stabil.' },
-            { id: 'back', label: 'Rücken', exercise: 'Latzug', guide: 'Zur Brust ziehen.' },
-            { id: 'legs', label: 'Beine', exercise: 'Kniebeugen', guide: 'Tief beugen, gerader Rücken.' },
-            { id: 'shoulders', label: 'Schulter', exercise: 'Military Press', guide: 'Über Kopf drücken.' },
-            { id: 'biceps', label: 'Bizeps', exercise: 'Curls', guide: 'Nur Unterarme bewegen.' },
-            { id: 'triceps', label: 'Trizeps', exercise: 'Pushdowns', guide: 'Ellbogen fixiert.' },
-            { id: 'abs', label: 'Bauch', exercise: 'Planks', guide: 'Spannung halten.' }
-        ];
-
-        // Init Chart
+        // --- STANDARD APP LOGIC ---
         const ctx = document.getElementById('progressChart').getContext('2d');
-        progressChartInstance = new Chart(ctx, {
+        appState.chartInstance = new Chart(ctx, {
             type: 'line',
             data: {
                 labels: [], datasets: [{
-                    label: 'Volumen', data: [], borderColor: '#00f2ff', backgroundColor: 'rgba(0, 242, 255, 0.1)', fill: true, tension: 0.4
+                    label: 'Gesamtvolumen (kg)', data: [], borderColor: '#00f2ff', backgroundColor: 'rgba(0, 242, 255, 0.1)', fill: true, tension: 0.3, pointRadius: 4, pointBackgroundColor: '#00f2ff'
                 }]
             },
-            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { grid: { color: '#334155' }, beginAtZero: true }, x: { grid: { display: false }, ticks: { color: '#94a3b8' } } } }
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: {mode: 'index', intersect: false} }, scales: { y: { grid: { color: '#334155' }, beginAtZero: true, ticks: { color: '#94a3b8', font:{size:10} } }, x: { grid: { display: false }, ticks: { color: '#94a3b8', font:{size:10} } } } }
         });
 
-        // Event Listener for Login Button (Since module scope)
         document.getElementById('login-btn').addEventListener('click', window.login);
 
-        // Auto Login Check
         const savedUser = localStorage.getItem('fit_user');
-        const isLi = localStorage.getItem('fit_li');
-        if(isLi === 'true' && savedUser) {
-            loadUserData(savedUser).then(() => {
-                document.getElementById('login-modal').style.display = 'none';
-            });
+        if(localStorage.getItem('fit_li') === 'true' && savedUser) {
+            loadUserData(savedUser);
+        } else {
+            const sessionUser = sessionStorage.getItem('fit_user');
+            if(sessionUser) loadUserData(sessionUser);
         }
 
-        // Render Muscles
         const mc = document.getElementById('muscle-container');
-        muscles.forEach(m => {
-            const b = document.createElement('div');
-            b.className = 'muscle-btn';
+        appState.musclesDb.forEach(m => {
+            const b = document.createElement('button');
+            b.className = 'secondary';
+            b.style.width = 'auto'; b.style.padding = '8px 15px'; b.style.fontSize = '0.9rem';
             b.innerText = m.label;
             b.onclick = function() {
-                this.classList.toggle('selected');
+                this.classList.toggle('active');
+                this.style.background = this.classList.contains('active') ? 'var(--primary)' : '#475569';
+                this.style.color = this.classList.contains('active') ? 'var(--bg-dark)' : 'white';
+
                 const id = m.id;
-                selectedMuscles.includes(id) ? selectedMuscles=selectedMuscles.filter(x=>x!==id) : selectedMuscles.push(id);
+                appState.selectedMuscles.includes(id) ? appState.selectedMuscles=appState.selectedMuscles.filter(x=>x!==id) : appState.selectedMuscles.push(id);
                 updateAIAnalysis();
             };
             mc.appendChild(b);
         });
 
+        document.getElementById('energy-level').addEventListener('input', function(e) {
+           document.getElementById('energy-val').innerText = e.target.value;
+        });
+
         function updateAIAnalysis() {
              const out = document.getElementById('ai-output');
-             if(selectedMuscles.length===0) { out.innerText="Warte..."; return; }
-             let txt = `Fokus: ${selectedMuscles.map(m=>m.toUpperCase()).join(', ')}.`;
-             if(selectedMuscles.includes('chest')&&!selectedMuscles.includes('back')) txt += "\n⚠️ Rücken fehlt!";
+             if(appState.selectedMuscles.length===0) { out.innerText="Wähle Muskeln für Fokus-Analyse..."; return; }
+             let txt = `Fokus gesetzt auf: ${appState.selectedMuscles.map(m=> appState.musclesDb.find(x=>x.id===m).label).join(', ')}.`;
+             const hasPush = appState.selectedMuscles.some(m => ['chest','shoulders','triceps'].includes(m));
+             const hasPull = appState.selectedMuscles.some(m => ['back','biceps'].includes(m));
+             const hasLegs = appState.selectedMuscles.includes('legs');
+             if(hasPush && !hasPull) txt += "\n⚠️ Tipp: Zugübungen (Rücken/Bizeps) als Ausgleich ergänzen.";
+             if(!hasLegs && appState.selectedMuscles.length > 2) txt += "\n🦵 'Never skip leg day' - Beine nicht vergessen!";
              out.innerText = txt;
         }
 
         window.calculateAIPlan = () => {
             const energy = parseInt(document.getElementById('energy-level').value);
             const sore = document.getElementById('soreness-level').value;
+            const trend = document.getElementById('progress-trend').value;
             const box = document.getElementById('ai-recommendation');
-            
-            // AI Logic using History
-            let advice = "";
-            const lastSession = sessionHistory[sessionHistory.length-1];
-            if(lastSession) {
-                if(lastSession.avgRpe < 5) advice = "Letztes Mal war leicht. +2.5kg heute!";
-                else if(lastSession.avgRpe > 8) advice = "Letztes Mal war Limit. Halten.";
-            }
-
             let freq = 3; 
-            if(energy >= 8 && sore === 'none') freq = 5;
-            else if(energy < 4 || sore === 'high') freq = 2;
-
+            let splitType = "Ganzkörper (Basis)";
+            let advice = "";
+            if (sore === 'high' || energy <= 3) {
+                 freq = 2; splitType = "Reduzierter GK (Regeneration)";
+                 advice = "Hoher Kater/Wenig Energie: Volumen & Frequenz reduziert.";
+            } else if (energy >= 8 && sore === 'none' && trend !== 'down') {
+                 freq = 4; splitType = "2er Split (Push/Pull oder OK/UK)";
+                 advice = "Top fit! Frequenz erhöht für optimalen Reiz.";
+            } else if (trend === 'up' && energy >= 6) {
+                 advice = "Guter Trend! Bleib dran, versuche Gewichte leicht zu steigern.";
+            }
             box.style.display = 'block';
-            box.innerHTML = `<strong>KI Coach:</strong> ${freq} Tage Split empfohlen.<br>${advice ? "💡 "+advice : "Go for it!"}`;
+            box.innerHTML = `<strong><i class="fa-solid fa-wand-magic-sparkles"></i> KI Plan:</strong> ${splitType} (${freq}x/Woche).<br><span style="font-size:0.9rem; color:var(--text-muted)">${advice}</span>`;
             generateRoutine(freq);
         };
 
         function generateRoutine(freq) {
             const c = document.getElementById('routine-container'); c.innerHTML='';
-            let days = freq==2?["GK A","GK B"]:freq==5?["Push","Pull","Beine","Upper","Lower"]:["GK","GK","GK"];
-            
+            let days = freq===2 ? ["GK A (Fokus Grundübungen)","GK B (Fokus Maschinen)"] :
+                       freq===4 ? ["Oberkörper A","Unterkörper A","Oberkörper B","Unterkörper B"] :
+                       ["GK Montag","GK Mittwoch","GK Freitag"];
+
             days.forEach((dName, idx) => {
                 const div = document.createElement('div');
-                div.className = 'card'; div.style.marginBottom='10px';
-                let pool = muscles; // Simplified logic
-                if(dName.includes("Push")||dName.includes("Upper")) pool = muscles.filter(m=>['chest','shoulders','triceps'].includes(m.id));
-                if(dName.includes("Pull")||dName.includes("Beine")) pool = muscles.filter(m=>['back','biceps','legs'].includes(m.id));
+                div.className = 'card'; div.style.marginBottom='15px'; div.style.padding='1.2rem';
+                let pool = [...appState.musclesDb]; 
+                if(dName.includes("Oberkörper") || dName.includes("Push") || dName.includes("Pull")) {
+                     pool = pool.filter(m => !['legs','abs'].includes(m.id));
+                } else if (dName.includes("Unterkörper")) {
+                     pool = pool.filter(m => ['legs','abs'].includes(m.id));
+                }
+                if(dName.includes("GK")) pool.sort(() => Math.random() - 0.5);
 
-                let html = `<h4>Tag ${idx+1}: ${dName}</h4>`;
-                pool.slice(0,3).forEach(ex => {
+                let html = `<h4 style="border-bottom:1px solid #334155; padding-bottom:10px;">Tag ${idx+1}: ${dName}</h4>`;
+                pool.slice(0, 4).forEach(ex => {
+                    let lastWeight = '', lastRepsPlaceholder = '10-12';
+                    let suggestionInfo = "";
+                    const reversedHistory = [...appState.sessionHistory].reverse();
+                    const lastSessionWithEx = reversedHistory.find(s => s.exercises && s.exercises.some(e => e.name === ex.exercise));
+
+                    if(lastSessionWithEx) {
+                        const prevExData = lastSessionWithEx.exercises.find(e => e.name === ex.exercise);
+                        if(prevExData) {
+                            lastWeight = prevExData.weight;
+                            if(prevExData.rpe <= 7) {
+                                lastWeight += 2.5; 
+                                suggestionInfo = `<span style="font-size:0.7rem; color:var(--success); margin-left:5px;"><i class="fa-solid fa-arrow-up"></i> +2.5kg (Letztes Mal war RPE ${prevExData.rpe})</span>`;
+                            } else if (prevExData.rpe >= 9) {
+                                suggestionInfo = `<span style="font-size:0.7rem; color:var(--text-muted); margin-left:5px;"><i class="fa-solid fa-left-right"></i> Halten (Letztes Mal war RPE ${prevExData.rpe})</span>`;
+                            }
+                            lastRepsPlaceholder = prevExData.reps; 
+                        }
+                    }
+
                     html += `
                     <div class="workout-item" data-ex="${ex.exercise}">
-                        <div class="workout-header"><span>${ex.exercise}</span> <span style="font-size:0.7rem;color:#94a3b8">3x10</span></div>
+                        <div class="workout-header" style="display:flex; justify-content:space-between; align-items:center;">
+                            <span style="font-weight:600;">${ex.exercise} ${suggestionInfo}</span>
+                            <span style="font-size:0.75rem;color:#94a3b8; background:var(--input-bg); padding:2px 8px; border-radius:10px;">Ziel: 3 Sets</span>
+                        </div>
                         <div class="tracker-row">
-                            <input type="number" class="t-weight" placeholder="kg">
-                            <input type="number" class="t-reps" placeholder="Reps">
-                            <select class="t-rpe"><option value="5">RPE 7</option><option value="8">RPE 9</option><option value="10">Fail</option></select>
+                            <input type="number" class="t-weight" placeholder="kg" value="${lastWeight}" step="0.5">
+                            <input type="number" class="t-reps" placeholder="Reps (Ziel: ${lastRepsPlaceholder})">
+                            <select class="t-rpe" style="font-size:0.8rem;">
+                                <option value="7">RPE 7 (3 im Tank)</option>
+                                <option value="8" selected>RPE 8 (2 im Tank)</option>
+                                <option value="9">RPE 9 (1 im Tank)</option>
+                                <option value="10">RPE 10 (Limit)</option>
+                            </select>
                             <button class="timer-btn" onclick="window.startTimer(90)"><i class="fa-solid fa-stopwatch"></i></button>
                         </div>
                     </div>`;
@@ -571,50 +659,53 @@
                 div.innerHTML = html;
                 c.appendChild(div);
             });
-            document.getElementById('save-session-btn').style.display = 'block';
+            document.getElementById('save-session-btn').style.display = 'flex';
+            document.getElementById('routine-container').scrollIntoView({ behavior: 'smooth' });
         }
 
-        // TIMER LOGIC
         window.startTimer = (seconds) => {
             const overlay = document.getElementById('timer-overlay');
-            clearInterval(timerInterval);
-            timerSeconds = seconds;
+            clearInterval(appState.timer.interval);
+            appState.timer.seconds = seconds;
             overlay.style.display = 'block';
             overlay.classList.remove('pulse-anim');
             updateTimerDisplay();
-            timerInterval = setInterval(() => {
-                timerSeconds--;
+            appState.timer.interval = setInterval(() => {
+                appState.timer.seconds--;
                 updateTimerDisplay();
-                if(timerSeconds <= 0) {
-                    clearInterval(timerInterval);
+                if(appState.timer.seconds <= 0) {
+                    clearInterval(appState.timer.interval);
                     overlay.classList.add('pulse-anim');
                 }
             }, 1000);
         };
-        window.adjustTimer = (n) => { timerSeconds += n; if(timerSeconds<0) timerSeconds=0; updateTimerDisplay(); };
-        window.stopTimer = () => { clearInterval(timerInterval); document.getElementById('timer-overlay').style.display = 'none'; };
+        window.adjustTimer = (n) => { appState.timer.seconds += n; if(appState.timer.seconds<0) appState.timer.seconds=0; updateTimerDisplay(); };
+        window.stopTimer = () => { clearInterval(appState.timer.interval); document.getElementById('timer-overlay').style.display = 'none'; };
         function updateTimerDisplay() {
-            const m = Math.floor(timerSeconds/60); const s = timerSeconds%60;
+            const m = Math.floor(appState.timer.seconds/60); const s = appState.timer.seconds%60;
             document.getElementById('timer-val').innerText = `${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
         }
-        
-        // Histamin Nutrition
-        const histSafeFoods = { carbs: ['Kartoffeln', 'Reis', 'Hafer'], protein: ['Huhn', 'Rind', 'Seelachs'], veg: ['Brokkoli', 'Karotte', 'Zucchini'] };
+
         window.generateNutrition = () => {
             const c = document.getElementById('meal-container'); c.innerHTML='';
             let list = new Set();
-            ['Mo','Di','Mi','Do','Fr','Sa','So'].forEach(d => {
-                const ca = histSafeFoods.carbs[Math.floor(Math.random()*3)];
-                const pr = histSafeFoods.protein[Math.floor(Math.random()*3)];
-                const ve = histSafeFoods.veg[Math.floor(Math.random()*3)];
+            const days = ['Mo','Di','Mi','Do','Fr','Sa','So'];
+            const sf = appState.histSafeFoods;
+            days.forEach(d => {
+                const ca = sf.carbs[Math.floor(Math.random()*sf.carbs.length)];
+                const pr = sf.protein[Math.floor(Math.random()*sf.protein.length)];
+                const ve = sf.veg[Math.floor(Math.random()*sf.veg.length)];
                 list.add(ca); list.add(pr); list.add(ve);
-                const div = document.createElement('div'); div.className='meal-card';
-                div.innerHTML = `<span class="meal-day">${d}</span><div style="font-size:0.8rem">Mittag: ${pr}, ${ca}, ${ve}</div>`;
+                const div = document.createElement('div');
+                div.className = 'card'; div.style.marginBottom='10px'; div.style.padding='1rem';
+                div.innerHTML = `<div style="display:flex; justify-content:space-between; font-weight:bold; color:var(--primary); margin-bottom:5px;">
+                                    <span>${d}</span><span>Mittagessen</span>
+                                 </div>
+                                 <div style="font-size:0.9rem; color:var(--text-main);"><i class="fa-solid fa-plate-wheat" style="color:var(--text-muted); margin-right:5px;"></i> ${pr} mit ${ca} und ${ve}</div>`;
                 c.appendChild(div);
             });
             document.getElementById('shopping-list').innerHTML = Array.from(list).join(', ');
         };
-
     </script>
 </body>
 </html>
