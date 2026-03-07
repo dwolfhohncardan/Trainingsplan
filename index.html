@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>AI Fitness Nexus 6.0 (Cloud)</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        /* --- DESIGN VARIABLEN --- */
+        :root {
+            --primary: #00f2ff;
+            --secondary: #7000ff;
+            --bg-dark: #0f172a;
+            --bg-panel: #1e293b;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --success: #10b981;
+            --danger: #ef4444;
+            --input-bg: #334155;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
+        body { background-color: var(--bg-dark); color: var(--text-main); height: 100vh; display: flex; overflow: hidden; }
+
+        /* --- UI ELEMENTE --- */
+        input, select {
+            background: var(--input-bg); border: 1px solid #475569; color: white;
+            padding: 0.75rem; border-radius: 0.5rem; width: 100%; margin-bottom: 10px; font-size: 16px; 
+        }
+        input:focus, select:focus { outline: 1px solid var(--primary); }
+
+        /* Slider Styling */
+        input[type=range] { -webkit-appearance: none; width: 100%; background: transparent; padding: 0; border: none; }
+        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; height: 16px; width: 16px; border-radius: 50%; background: var(--primary); cursor: pointer; margin-top: -6px; }
+        input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 4px; cursor: pointer; background: #475569; border-radius: 2px; }
+
+        button {
+            background: linear-gradient(135deg, var(--secondary), var(--primary));
+            border: none; padding: 0.75rem; color: white; border-radius: 0.5rem;
+            cursor: pointer; font-weight: bold; transition: 0.3s; width: 100%; 
+        }
+        button:hover { opacity: 0.9; transform: translateY(-1px); }
+        button.secondary { background: #475569; }
+        button.save-btn { background: var(--success); margin-top: 10px; }
+        
+        .timer-btn {
+            background: transparent; border: 1px solid var(--primary); color: var(--primary);
+            width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            cursor: pointer; margin-left: 5px;
+        }
+        .timer-btn:hover { background: rgba(0, 242, 255, 0.1); }
+
+        /* --- LAYOUT --- */
+        .sidebar {
+            width: 260px; background: var(--bg-panel); padding: 2rem 1rem;
+            display: flex; flex-direction: column; border-right: 1px solid #334155;
+        }
+        .brand { font-size: 1.5rem; font-weight: bold; color: var(--primary); margin-bottom: 3rem; display: flex; gap: 10px; align-items: center; }
+        .nav-item {
+            padding: 1rem; color: var(--text-muted); text-decoration: none; border-radius: 0.5rem; margin-bottom: 0.5rem; 
+            cursor: pointer; display: flex; gap: 10px; align-items: center; transition: 0.3s;
+        }
+        .nav-item:hover, .nav-item.active { background: rgba(0, 242, 255, 0.1); color: var(--primary); }
+
+        .main-content { flex: 1; padding: 2rem; overflow-y: auto; padding-bottom: 100px; position: relative; }
+        .bottom-nav { display: none; }
+
+        /* --- VIEWS --- */
+        .view-section { display: none; animation: fadeIn 0.4s; }
+        .view-section.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .grid-dashboard { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; }
+        .card { background: var(--bg-panel); border-radius: 1rem; padding: 1.5rem; border: 1px solid #334155; margin-bottom: 20px; position: relative; }
+        h2, h3, h4 { margin-bottom: 1rem; color: var(--text-main); }
+        .highlight { color: var(--primary); }
+
+        /* --- TRACKER --- */
+        .tracker-row {
+            display: grid; grid-template-columns: 1fr 1fr 2fr auto; gap: 5px; margin-top: 10px; padding: 10px; 
+            background: rgba(0,0,0,0.2); border-radius: 0.5rem; align-items: center;
+        }
+        .tracker-row input, .tracker-row select { margin-bottom: 0; padding: 0.5rem; font-size: 0.85rem; }
+        .workout-item { border-bottom: 1px solid #334155; padding: 1rem 0; }
+
+        /* --- TIMER --- */
+        #timer-overlay {
+            position: fixed; bottom: 20px; right: 20px; width: 200px; 
+            background: rgba(15, 23, 42, 0.95); border: 2px solid var(--primary);
+            border-radius: 1rem; padding: 1rem; text-align: center; z-index: 2000;
+            display: none; box-shadow: 0 0 20px rgba(0, 242, 255, 0.3);
+            animation: slideUp 0.3s ease-out;
+        }
+        @keyframes slideUp { from { transform: translateY(100px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        .timer-display { font-size: 2.5rem; font-family: 'Courier New', monospace; font-weight: bold; color: var(--text-main); margin: 0.5rem 0; }
+        .timer-controls { display: flex; justify-content: space-between; gap: 5px; }
+        .pulse-anim { animation: pulseRed 1s infinite; border-color: var(--danger) !important; }
+        @keyframes pulseRed { 0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); } 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); } }
+
+        /* --- LOADING SPINNER --- */
+        #loading-overlay {
+            position: absolute; top:0; left:0; width:100%; height:100%; background: rgba(15,23,42,0.8);
+            display:none; justify-content:center; align-items:center; z-index: 50; border-radius: 1rem;
+        }
+        .spinner { width: 40px; height: 40px; border: 4px solid rgba(0, 242, 255, 0.3); border-top: 4px solid var(--primary); border-radius: 50%; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* --- MOBILE --- */
+        @media only screen and (max-width: 480px) {
+            body { flex-direction: column; }
+            .sidebar { display: none; }
+            .bottom-nav {
+                display: flex; position: fixed; bottom: 0; left: 0; width: 100%;
+                background: var(--bg-panel); border-top: 1px solid #334155; height: 80px;
+                justify-content: space-around; align-items: center; z-index: 999;
+                padding-bottom: env(safe-area-inset-bottom);
+            }
+            .bottom-nav-item {
+                display: flex; flex-direction: column; align-items: center;
+                font-size: 0.7rem; color: var(--text-muted); padding: 10px;
+            }
+            .bottom-nav-item.active { color: var(--primary); }
+            .main-content { padding: 1rem; padding-bottom: 100px; }
+            .grid-dashboard { grid-template-columns: 1fr; }
+            .tracker-row { grid-template-columns: 1fr 1fr auto; flex-wrap: wrap; }
+            .tracker-row select { width: 100%; grid-column: span 3; margin-top: 5px; }
+            .tracker-row .timer-btn { grid-column: 3; }
+            #timer-overlay { bottom: 90px; right: 10px; left: 10px; width: auto; }
+        }
+
+        /* --- LOGIN --- */
+        #login-modal {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(15, 23, 42, 0.95); display: flex; justify-content: center; align-items: center; z-index: 1000;
+        }
+        .login-box { width: 90%; max-width: 350px; background: var(--bg-panel); padding: 2rem; border-radius: 1rem; border: 1px solid var(--primary); text-align: center; }
+    </style>
+</head>
+<body>
+
+    <div id="timer-overlay">
+        <div style="font-size:0.8rem; color:var(--text-muted);">PAUSE</div>
+        <div class="timer-display" id="timer-val">01:30</div>
+        <div class="timer-controls">
+            <button class="secondary" onclick="window.adjustTimer(-10)">-10s</button>
+            <button class="secondary" onclick="window.adjustTimer(10)">+10s</button>
+            <button onclick="window.stopTimer()" style="background:var(--danger)">X</button>
+        </div>
+    </div>
+
+    <div id="login-modal">
+        <div class="login-box">
+            <h2 class="highlight">AI FITNESS NEXUS</h2>
+            <p style="color:var(--text-muted); font-size:0.8rem; margin-bottom:1rem;">Cloud Sync Active <i class="fa-solid fa-cloud"></i></p>
+            <input type="text" id="username" placeholder="Dein Name (Cloud ID)">
+            <div style="display:flex; align-items:center; margin-bottom:1rem; justify-content:center; gap:5px;">
+                <input type="checkbox" id="stay-logged-in" style="width:auto; margin:0;">
+                <label for="stay-logged-in" style="color:var(--text-muted); font-size:0.9rem;">Angemeldet bleiben</label>
+            </div>
+            <button id="login-btn">System Starten</button>
+        </div>
+    </div>
+
+    <nav class="sidebar">
+        <div class="brand"><i class="fa-solid fa-dna"></i> NEXUS AI</div>
+        <a class="nav-item active" data-target="dashboard" onclick="window.switchView('dashboard')"><i class="fa-solid fa-chart-line"></i> Dashboard</a>
+        <a class="nav-item" data-target="profile" onclick="window.switchView('profile')"><i class="fa-solid fa-user-gear"></i> Profil</a>
+        <a class="nav-item" data-target="plan" onclick="window.switchView('plan')"><i class="fa-solid fa-dumbbell"></i> Plan & Track</a>
+        <a class="nav-item" data-target="nutrition" onclick="window.switchView('nutrition')"><i class="fa-solid fa-carrot"></i> Essen</a>
+        <div style="margin-top: auto;"><a class="nav-item" onclick="window.logout()"><i class="fa-solid fa-power-off"></i> Logout</a></div>
+    </nav>
+
+    <div class="bottom-nav">
+        <a class="bottom-nav-item active" data-target="dashboard" onclick="window.switchView('dashboard')"><i class="fa-solid fa-chart-line"></i><span>Dash</span></a>
+        <a class="bottom-nav-item" data-target="plan" onclick="window.switchView('plan')"><i class="fa-solid fa-dumbbell"></i><span>Plan</span></a>
+        <a class="bottom-nav-item" data-target="nutrition" onclick="window.switchView('nutrition')"><i class="fa-solid fa-carrot"></i><span>Essen</span></a>
+        <a class="bottom-nav-item" data-target="profile" onclick="window.switchView('profile')"><i class="fa-solid fa-user"></i><span>Profil</span></a>
+    </div>
+
+    <main class="main-content">
+        <div id="dashboard" class="view-section active">
+            <div style="margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center;">
+                <h1>Hallo, <span id="user-display" class="highlight">Athlet</span></h1>
+                <div id="bmi-badge" style="background: var(--input-bg); padding: 5px 15px; border-radius: 20px; font-size: 0.8rem; display:none;">BMI: --</div>
+                <i class="fa-solid fa-power-off" onclick="window.logout()" style="display:none; color:var(--danger);" id="mobile-logout"></i>
+            </div>
+            <div class="grid-dashboard">
+                <div>
+                    <div class="card">
+                        <h3><i class="fa-solid fa-crosshairs"></i> Fokus heute</h3>
+                        <div class="muscle-grid" id="muscle-container"></div>
+                    </div>
+                    <div class="card" style="border-left: 4px solid var(--secondary); background: linear-gradient(90deg, rgba(112,0,255,0.05), transparent);">
+                        <h3><i class="fa-solid fa-brain"></i> KI Live-Analyse</h3>
+                        <div id="ai-output" style="font-family:'Courier New', monospace; font-size:0.9rem;">Warte auf Eingabe...</div>
+                    </div>
+                </div>
+                <div>
+                    <div class="card">
+                        <h3>Kalorienziel</h3>
+                        <div style="text-align:center;">
+                            <span id="cal-target" style="font-size: 2.5rem; font-weight:bold; color:var(--primary)">0</span>
+                            <div style="color:var(--text-muted)">kcal (Aufbau)</div>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div id="loading-overlay"><div class="spinner"></div></div>
+                        <h3>Dein Fortschritt (Cloud)</h3>
+                        <div style="height: 200px;"><canvas id="progressChart"></canvas></div>
+                        <div id="last-session-info" style="font-size:0.8rem; color:var(--text-muted); margin-top:10px; text-align:center;">Synchronisiere...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="plan" class="view-section">
+            <h1>Smart Coach & Tracker</h1>
+            <div class="card" style="border: 1px solid var(--secondary);">
+                <h3><i class="fa-solid fa-robot"></i> Daily Check-In</h3>
+                <div style="display:flex; gap:10px; align-items:center;">
+                    <label style="width:auto; margin:0;">Energie:</label><input type="range" id="energy-level" min="1" max="10" value="5">
+                </div>
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:10px;">
+                    <select id="soreness-level"><option value="none">Frisch</option><option value="low">Leichter Kater</option><option value="high">Starker Kater</option></select>
+                    <select id="progress-trend"><option value="steady">Gehalten</option><option value="up">Gesteigert</option><option value="down">Schlecht</option></select>
+                </div>
+                <button onclick="window.calculateAIPlan()" style="margin-top:10px;">Plan Erstellen</button>
+                <div id="ai-recommendation" style="margin-top:15px; padding:10px; background:rgba(112,0,255,0.1); border-radius:5px; display:none;"></div>
+            </div>
+            <div class="card">
+                <h4>Heutiges Workout</h4>
+                <div id="routine-container"><p style="color:var(--text-muted); text-align:center;">Bitte oben Check-In machen.</p></div>
+                <button id="save-session-btn" class="save-btn" style="display:none;" onclick="window.saveSession()"><i class="fa-solid fa-floppy-disk"></i> In Cloud speichern</button>
+            </div>
+        </div>
+
+        <div id="nutrition" class="view-section">
+            <div style="display:flex; justify-content:space-between;">
+                <h1>Histamin-Frei</h1>
+                <button class="secondary" onclick="window.generateNutrition()" style="width:auto;">Neu</button>
+            </div>
+            <div class="card">
+                <h3>Einkaufsliste</h3>
+                <div id="shopping-list" style="color:var(--text-muted); font-size:0.9rem;">...</div>
+            </div>
+            <div class="nutrition-grid" id="meal-container"></div>
+        </div>
+
+        <div id="profile" class="view-section">
+            <h1>Profil</h1>
+            <div class="card">
+                <label>Gewicht (kg)</label><input type="number" id="p-weight" placeholder="80">
+                <label>Größe (cm)</label><input type="number" id="p-height" placeholder="180">
+                <label>Alter</label><input type="number" id="p-age" placeholder="30">
+                <label>Geschlecht</label><select id="p-gender"><option value="male">Mann</option><option value="female">Frau</option></select>
+                <label>Aktivität</label><select id="p-activity"><option value="1.2">Büro</option><option value="1.55">Sportlich</option></select>
+                <button onclick="window.saveProfile()">In Cloud Speichern</button>
+            </div>
+        </div>
+    </main>
+
+    <script type="module">
+        // Import von Firebase Modulen (via CDN für Nutzung ohne Build-Tools)
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore, doc, getDoc, setDoc, updateDoc, arrayUnion } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        // DEINE FIREBASE KONFIGURATION (EINGEFÜGT)
+        const firebaseConfig = {
+          apiKey: "AIzaSyBjWevFGSdW-6tQdWF02zxPh_PrMJihd0M",
+          authDomain: "trainingsplan-514cb.firebaseapp.com",
+          projectId: "trainingsplan-514cb",
+          storageBucket: "trainingsplan-514cb.firebasestorage.app",
+          messagingSenderId: "992636219644",
+          appId: "1:992636219644:web:0efc0aefcaaf1498d86779"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // --- GLOBAL VARIABLES ---
+        let userProfile = { weight: 0, height: 0, age: 0, gender: 'male', activity: 1.2 };
+        let sessionHistory = [];
+        let selectedMuscles = [];
+        let currentUsername = "";
+        let progressChartInstance = null;
+        let timerInterval = null;
+        let timerSeconds = 0;
+
+        // --- GLOBAL FUNCTIONS (Attached to Window for HTML access) ---
+        window.switchView = (viewId) => {
+            document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
+            document.getElementById(viewId).classList.add('active');
+            document.querySelectorAll('.nav-item, .bottom-nav-item').forEach(el => el.classList.remove('active'));
+            const dLink = document.querySelector(`.sidebar .nav-item[data-target="${viewId}"]`);
+            const mLink = document.querySelector(`.bottom-nav-item[data-target="${viewId}"]`);
+            if(dLink) dLink.classList.add('active');
+            if(mLink) mLink.classList.add('active');
+        };
+
+        window.logout = () => {
+            localStorage.clear(); sessionStorage.clear(); location.reload();
+        };
+
+        window.login = async () => {
+            const nameInput = document.getElementById('username').value;
+            if(!nameInput) return alert("Bitte Namen eingeben");
+            
+            const sanitizedUser = nameInput.trim().toLowerCase();
+            const stay = document.getElementById('stay-logged-in').checked;
+
+            if(stay) {
+                localStorage.setItem('fit_user', sanitizedUser);
+                localStorage.setItem('fit_li', 'true');
+            } else {
+                sessionStorage.setItem('fit_user', sanitizedUser);
+            }
+
+            await loadUserData(sanitizedUser);
+            document.getElementById('login-modal').style.display = 'none';
+        };
+
+        // --- FIREBASE LOGIC ---
+        async function loadUserData(userId) {
+            currentUsername = userId;
+            document.getElementById('user-display').innerText = userId.charAt(0).toUpperCase() + userId.slice(1);
+            
+            // Show Loading
+            document.getElementById('loading-overlay').style.display = 'flex';
+
+            try {
+                const docRef = doc(db, "users", userId);
+                const docSnap = await getDoc(docRef);
+
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    if(data.profile) userProfile = data.profile;
+                    if(data.history) sessionHistory = data.history;
+                } else {
+                    // New User -> Create minimal Doc
+                    await setDoc(docRef, { profile: userProfile, history: [] });
+                }
+                
+                // Update UI with loaded data
+                fillProfileInputs();
+                analyzeProfile();
+                updateChartData();
+                updateLastSessionInfo();
+
+            } catch (error) {
+                console.error("Error getting document:", error);
+                alert("Fehler beim Laden der Cloud-Daten. Offline?");
+            } finally {
+                document.getElementById('loading-overlay').style.display = 'none';
+            }
+        }
+
+        window.saveProfile = async () => {
+            if(!currentUsername) return alert("Nicht eingeloggt!");
+            
+            userProfile.weight = parseFloat(document.getElementById('p-weight').value) || 0;
+            userProfile.height = parseFloat(document.getElementById('p-height').value) || 0;
+            userProfile.age = parseFloat(document.getElementById('p-age').value) || 0;
+            userProfile.gender = document.getElementById('p-gender').value;
+            userProfile.activity = parseFloat(document.getElementById('p-activity').value);
+
+            try {
+                const docRef = doc(db, "users", currentUsername);
+                await setDoc(docRef, { profile: userProfile }, { merge: true });
+                analyzeProfile();
+                alert("Profil in der Cloud gespeichert!");
+            } catch (e) {
+                alert("Fehler beim Speichern: " + e.message);
+            }
+        };
+
+        window.saveSession = async () => {
+            if(!currentUsername) return alert("Nicht eingeloggt!");
+
+            const items = document.querySelectorAll('.workout-item');
+            let sessionData = { 
+                date: new Date().toLocaleDateString(), 
+                timestamp: Date.now(),
+                exercises: [], 
+                avgRpe: 0, 
+                totalVolume: 0 
+            };
+            let totalRpe = 0; let count = 0;
+
+            items.forEach(item => {
+                const name = item.getAttribute('data-ex');
+                const w = parseFloat(item.querySelector('.t-weight').value) || 0;
+                const r = parseFloat(item.querySelector('.t-reps').value) || 0;
+                const rpe = parseInt(item.querySelector('.t-rpe').value);
+                
+                if(w > 0 && r > 0) {
+                    sessionData.exercises.push({ name, weight: w, reps: r, rpe: rpe });
+                    totalRpe += rpe; 
+                    sessionData.totalVolume += (w * r);
+                    count++;
+                }
+            });
+
+            if(count === 0) return alert("Bitte Gewichte eintragen!");
+            sessionData.avgRpe = totalRpe / count;
+
+            try {
+                // Update Local
+                sessionHistory.push(sessionData);
+                // Update Cloud
+                const docRef = doc(db, "users", currentUsername);
+                await updateDoc(docRef, {
+                    history: arrayUnion(sessionData)
+                });
+                
+                alert(`Cloud-Upload erfolgreich! Volumen: ${sessionData.totalVolume}kg`);
+                updateChartData();
+                updateLastSessionInfo();
+            } catch (e) {
+                alert("Cloud Fehler: " + e.message);
+            }
+        };
+
+        // --- HELPER FUNCTIONS ---
+        function fillProfileInputs() {
+            document.getElementById('p-weight').value = userProfile.weight || '';
+            document.getElementById('p-height').value = userProfile.height || '';
+            document.getElementById('p-age').value = userProfile.age || '';
+            document.getElementById('p-gender').value = userProfile.gender;
+            document.getElementById('p-activity').value = userProfile.activity;
+        }
+
+        function analyzeProfile() {
+            if(userProfile.weight===0) return;
+            const bmr = (10*userProfile.weight)+(6.25*userProfile.height)-(5*userProfile.age)+(userProfile.gender==='male'?5:-161);
+            document.getElementById('cal-target').innerText = Math.round(bmr*userProfile.activity)+300;
+            document.getElementById('bmi-badge').innerText = "BMI: "+(userProfile.weight/((userProfile.height/100)**2)).toFixed(1);
+            document.getElementById('bmi-badge').style.display = 'block';
+        }
+
+        function updateChartData() {
+            if(!progressChartInstance) return;
+            // Sort by time just in case
+            const sorted = [...sessionHistory].sort((a,b) => a.timestamp - b.timestamp);
+            const recent = sorted.slice(-7);
+            
+            const labels = recent.map(s => s.date.slice(0, 5));
+            const data = recent.map(s => s.totalVolume);
+
+            progressChartInstance.data.labels = labels;
+            progressChartInstance.data.datasets[0].data = data;
+            progressChartInstance.update();
+        }
+
+        function updateLastSessionInfo() {
+            const info = document.getElementById('last-session-info');
+            if(sessionHistory.length > 0) {
+                const last = sessionHistory[sessionHistory.length-1];
+                info.innerHTML = `Letztes Training: ${last.date}<br>Volumen: <strong>${last.totalVolume} kg</strong>`;
+            } else {
+                info.innerText = "Keine Daten in der Cloud.";
+            }
+        }
+
+        // --- STANDARD APP LOGIC (Muscles, Plan, etc.) ---
+        const muscles = [
+            { id: 'chest', label: 'Brust', exercise: 'Bankdrücken', guide: 'Füße fest, Rücken stabil.' },
+            { id: 'back', label: 'Rücken', exercise: 'Latzug', guide: 'Zur Brust ziehen.' },
+            { id: 'legs', label: 'Beine', exercise: 'Kniebeugen', guide: 'Tief beugen, gerader Rücken.' },
+            { id: 'shoulders', label: 'Schulter', exercise: 'Military Press', guide: 'Über Kopf drücken.' },
+            { id: 'biceps', label: 'Bizeps', exercise: 'Curls', guide: 'Nur Unterarme bewegen.' },
+            { id: 'triceps', label: 'Trizeps', exercise: 'Pushdowns', guide: 'Ellbogen fixiert.' },
+            { id: 'abs', label: 'Bauch', exercise: 'Planks', guide: 'Spannung halten.' }
+        ];
+
+        // Init Chart
+        const ctx = document.getElementById('progressChart').getContext('2d');
+        progressChartInstance = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: [], datasets: [{
+                    label: 'Volumen', data: [], borderColor: '#00f2ff', backgroundColor: 'rgba(0, 242, 255, 0.1)', fill: true, tension: 0.4
+                }]
+            },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { grid: { color: '#334155' }, beginAtZero: true }, x: { grid: { display: false }, ticks: { color: '#94a3b8' } } } }
+        });
+
+        // Event Listener for Login Button (Since module scope)
+        document.getElementById('login-btn').addEventListener('click', window.login);
+
+        // Auto Login Check
+        const savedUser = localStorage.getItem('fit_user');
+        const isLi = localStorage.getItem('fit_li');
+        if(isLi === 'true' && savedUser) {
+            loadUserData(savedUser).then(() => {
+                document.getElementById('login-modal').style.display = 'none';
+            });
+        }
+
+        // Render Muscles
+        const mc = document.getElementById('muscle-container');
+        muscles.forEach(m => {
+            const b = document.createElement('div');
+            b.className = 'muscle-btn';
+            b.innerText = m.label;
+            b.onclick = function() {
+                this.classList.toggle('selected');
+                const id = m.id;
+                selectedMuscles.includes(id) ? selectedMuscles=selectedMuscles.filter(x=>x!==id) : selectedMuscles.push(id);
+                updateAIAnalysis();
+            };
+            mc.appendChild(b);
+        });
+
+        function updateAIAnalysis() {
+             const out = document.getElementById('ai-output');
+             if(selectedMuscles.length===0) { out.innerText="Warte..."; return; }
+             let txt = `Fokus: ${selectedMuscles.map(m=>m.toUpperCase()).join(', ')}.`;
+             if(selectedMuscles.includes('chest')&&!selectedMuscles.includes('back')) txt += "\n⚠️ Rücken fehlt!";
+             out.innerText = txt;
+        }
+
+        window.calculateAIPlan = () => {
+            const energy = parseInt(document.getElementById('energy-level').value);
+            const sore = document.getElementById('soreness-level').value;
+            const box = document.getElementById('ai-recommendation');
+            
+            // AI Logic using History
+            let advice = "";
+            const lastSession = sessionHistory[sessionHistory.length-1];
+            if(lastSession) {
+                if(lastSession.avgRpe < 5) advice = "Letztes Mal war leicht. +2.5kg heute!";
+                else if(lastSession.avgRpe > 8) advice = "Letztes Mal war Limit. Halten.";
+            }
+
+            let freq = 3; 
+            if(energy >= 8 && sore === 'none') freq = 5;
+            else if(energy < 4 || sore === 'high') freq = 2;
+
+            box.style.display = 'block';
+            box.innerHTML = `<strong>KI Coach:</strong> ${freq} Tage Split empfohlen.<br>${advice ? "💡 "+advice : "Go for it!"}`;
+            generateRoutine(freq);
+        };
+
+        function generateRoutine(freq) {
+            const c = document.getElementById('routine-container'); c.innerHTML='';
+            let days = freq==2?["GK A","GK B"]:freq==5?["Push","Pull","Beine","Upper","Lower"]:["GK","GK","GK"];
+            
+            days.forEach((dName, idx) => {
+                const div = document.createElement('div');
+                div.className = 'card'; div.style.marginBottom='10px';
+                let pool = muscles; // Simplified logic
+                if(dName.includes("Push")||dName.includes("Upper")) pool = muscles.filter(m=>['chest','shoulders','triceps'].includes(m.id));
+                if(dName.includes("Pull")||dName.includes("Beine")) pool = muscles.filter(m=>['back','biceps','legs'].includes(m.id));
+
+                let html = `<h4>Tag ${idx+1}: ${dName}</h4>`;
+                pool.slice(0,3).forEach(ex => {
+                    html += `
+                    <div class="workout-item" data-ex="${ex.exercise}">
+                        <div class="workout-header"><span>${ex.exercise}</span> <span style="font-size:0.7rem;color:#94a3b8">3x10</span></div>
+                        <div class="tracker-row">
+                            <input type="number" class="t-weight" placeholder="kg">
+                            <input type="number" class="t-reps" placeholder="Reps">
+                            <select class="t-rpe"><option value="5">RPE 7</option><option value="8">RPE 9</option><option value="10">Fail</option></select>
+                            <button class="timer-btn" onclick="window.startTimer(90)"><i class="fa-solid fa-stopwatch"></i></button>
+                        </div>
+                    </div>`;
+                });
+                div.innerHTML = html;
+                c.appendChild(div);
+            });
+            document.getElementById('save-session-btn').style.display = 'block';
+        }
+
+        // TIMER LOGIC
+        window.startTimer = (seconds) => {
+            const overlay = document.getElementById('timer-overlay');
+            clearInterval(timerInterval);
+            timerSeconds = seconds;
+            overlay.style.display = 'block';
+            overlay.classList.remove('pulse-anim');
+            updateTimerDisplay();
+            timerInterval = setInterval(() => {
+                timerSeconds--;
+                updateTimerDisplay();
+                if(timerSeconds <= 0) {
+                    clearInterval(timerInterval);
+                    overlay.classList.add('pulse-anim');
+                }
+            }, 1000);
+        };
+        window.adjustTimer = (n) => { timerSeconds += n; if(timerSeconds<0) timerSeconds=0; updateTimerDisplay(); };
+        window.stopTimer = () => { clearInterval(timerInterval); document.getElementById('timer-overlay').style.display = 'none'; };
+        function updateTimerDisplay() {
+            const m = Math.floor(timerSeconds/60); const s = timerSeconds%60;
+            document.getElementById('timer-val').innerText = `${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
+        }
+        
+        // Histamin Nutrition
+        const histSafeFoods = { carbs: ['Kartoffeln', 'Reis', 'Hafer'], protein: ['Huhn', 'Rind', 'Seelachs'], veg: ['Brokkoli', 'Karotte', 'Zucchini'] };
+        window.generateNutrition = () => {
+            const c = document.getElementById('meal-container'); c.innerHTML='';
+            let list = new Set();
+            ['Mo','Di','Mi','Do','Fr','Sa','So'].forEach(d => {
+                const ca = histSafeFoods.carbs[Math.floor(Math.random()*3)];
+                const pr = histSafeFoods.protein[Math.floor(Math.random()*3)];
+                const ve = histSafeFoods.veg[Math.floor(Math.random()*3)];
+                list.add(ca); list.add(pr); list.add(ve);
+                const div = document.createElement('div'); div.className='meal-card';
+                div.innerHTML = `<span class="meal-day">${d}</span><div style="font-size:0.8rem">Mittag: ${pr}, ${ca}, ${ve}</div>`;
+                c.appendChild(div);
+            });
+            document.getElementById('shopping-list').innerHTML = Array.from(list).join(', ');
+        };
+
+    </script>
+</body>
+</html>
