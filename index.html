@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AI Fitness Nexus 6.2 (Version Display)</title>
+    <title>AI Fitness Nexus 6.3 (Goal & Variance)</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -16,6 +16,7 @@
             --text-main: #f8fafc;
             --text-muted: #94a3b8;
             --success: #10b981;
+            --warning: #f59e0b;
             --danger: #ef4444;
             --input-bg: #334155;
         }
@@ -43,7 +44,7 @@
         button:active { transform: translateY(0); }
         button.secondary { background: #475569; }
         button.save-btn { background: var(--success); margin-top: 10px; }
-        /* Loading State für Buttons */
+        
         button.loading { color: transparent; pointer-events: none; }
         button.loading::after {
             content: ""; position: absolute; width: 20px; height: 20px; top: 50%; left: 50%; margin: -10px 0 0 -10px;
@@ -70,7 +71,6 @@
         }
         .nav-item:hover, .nav-item.active { background: rgba(0, 242, 255, 0.1); color: var(--primary); }
         
-        /* Version Badge Sidebar */
         .version-badge {
             position: absolute; bottom: 10px; right: 10px; 
             font-size: 0.7rem; color: var(--text-muted); opacity: 0.5;
@@ -170,7 +170,7 @@
     <div id="login-modal">
         <div class="login-box">
             <h2 class="highlight">AI FITNESS NEXUS</h2>
-            <div style="font-size: 0.8rem; color: var(--primary); margin-bottom: 15px; border: 1px solid var(--primary); display: inline-block; padding: 2px 8px; border-radius: 12px;">v6.2</div>
+            <div style="font-size: 0.8rem; color: var(--primary); margin-bottom: 15px; border: 1px solid var(--primary); display: inline-block; padding: 2px 8px; border-radius: 12px;">v6.3</div>
             <p style="color:var(--text-muted); font-size:0.8rem; margin-bottom:1rem;">Cloud Sync Active <i class="fa-solid fa-cloud"></i></p>
             <input type="text" id="username" placeholder="Dein Name (Cloud ID)">
             <div style="display:flex; align-items:center; margin-bottom:1rem; justify-content:center; gap:5px;">
@@ -179,7 +179,7 @@
             </div>
             <button id="login-btn">System Starten</button>
         </div>
-        <div class="app-version">Build v6.2</div>
+        <div class="app-version">Build v6.3</div>
     </div>
 
     <nav class="sidebar">
@@ -189,7 +189,7 @@
         <a class="nav-item" data-target="plan" onclick="window.switchView('plan')"><i class="fa-solid fa-dumbbell"></i> Plan & Track</a>
         <a class="nav-item" data-target="nutrition" onclick="window.switchView('nutrition')"><i class="fa-solid fa-carrot"></i> Essen</a>
         <div style="margin-top: auto;"><a class="nav-item" onclick="window.logout()"><i class="fa-solid fa-power-off"></i> Logout</a></div>
-        <div class="version-badge">v6.2</div>
+        <div class="version-badge">v6.3</div>
     </nav>
 
     <div class="bottom-nav">
@@ -209,12 +209,17 @@
             <div class="grid-dashboard">
                 <div>
                     <div class="card">
+                        <h3><i class="fa-solid fa-bullseye"></i> Ziel Status</h3>
+                        <div id="goal-status-display" style="display:flex; justify-content:space-around; align-items:center; text-align:center;">
+                            <div><div style="color:var(--text-muted); font-size:0.8rem;">Aktuell</div><span id="dash-weight-cur" style="font-weight:bold; font-size:1.2rem;">--</span></div>
+                            <i class="fa-solid fa-arrow-right" style="color:var(--text-muted)"></i>
+                            <div><div style="color:var(--text-muted); font-size:0.8rem;">Ziel</div><span id="dash-weight-goal" style="font-weight:bold; font-size:1.2rem; color:var(--primary)">--</span></div>
+                        </div>
+                        <div id="goal-advice" style="margin-top:10px; font-size:0.8rem; color:var(--warning); text-align:center; background:rgba(245, 158, 11, 0.1); padding:5px; border-radius:5px;">Profil vervollständigen</div>
+                    </div>
+                    <div class="card">
                         <h3><i class="fa-solid fa-crosshairs"></i> Fokus heute</h3>
                         <div class="muscle-grid" id="muscle-container" style="display:flex; flex-wrap:wrap; gap:10px;"></div>
-                    </div>
-                    <div class="card" style="border-left: 4px solid var(--secondary); background: linear-gradient(90deg, rgba(112,0,255,0.05), transparent);">
-                        <h3><i class="fa-solid fa-brain"></i> KI Live-Analyse</h3>
-                        <div id="ai-output" style="font-family:'Courier New', monospace; font-size:0.9rem;">Wähle Muskeln für Fokus-Analyse...</div>
                     </div>
                 </div>
                 <div>
@@ -222,7 +227,7 @@
                         <h3>Kalorienziel</h3>
                         <div style="text-align:center;">
                             <span id="cal-target" style="font-size: 2.5rem; font-weight:bold; color:var(--primary)">0</span>
-                            <div style="color:var(--text-muted)">kcal (Aufbau Richtwert)</div>
+                            <div id="cal-mode" style="color:var(--text-muted)">kcal</div>
                         </div>
                     </div>
                     <div class="card">
@@ -248,12 +253,12 @@
                     <select id="soreness-level"><option value="none">Frisch (Kein Kater)</option><option value="low">Leichter Muskelkater</option><option value="high">Starker Muskelkater</option></select>
                     <select id="progress-trend"><option value="steady">Trend: Gehalten</option><option value="up">Trend: Gesteigert</option><option value="down">Trend: Schlecht</option></select>
                 </div>
-                <button onclick="window.calculateAIPlan()" style="margin-top:15px;">Intelligenten Plan Erstellen</button>
+                <button onclick="window.calculateAIPlan()" style="margin-top:15px;">Plan für mein Ziel erstellen</button>
                 <div id="ai-recommendation" style="margin-top:15px; padding:10px; background:rgba(112,0,255,0.1); border-radius:5px; display:none; border-left:3px solid var(--secondary);"></div>
             </div>
             <div class="card">
                 <h4>Heutiges Workout</h4>
-                <div id="routine-container"><p style="color:var(--text-muted); text-align:center; padding:20px;">Bitte oben Check-In machen für KI-Vorschläge.</p></div>
+                <div id="routine-container"><p style="color:var(--text-muted); text-align:center; padding:20px;">Bitte oben Check-In machen.</p></div>
                 <button id="save-session-btn" class="save-btn" style="display:none;" onclick="window.saveSession(this)">
                     <i class="fa-solid fa-floppy-disk"></i> <span>In Cloud speichern</span>
                 </button>
@@ -273,10 +278,11 @@
         </div>
 
         <div id="profile" class="view-section">
-            <h1>Profil Einstellungen</h1>
+            <h1>Profil & Ziele</h1>
             <div class="card">
                 <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px;">
-                    <div><label>Gewicht (kg)</label><input type="number" id="p-weight" placeholder="z.B. 80"></div>
+                    <div><label>Aktuelles Gewicht (kg)</label><input type="number" id="p-weight" placeholder="z.B. 80"></div>
+                    <div><label style="color:var(--primary); font-weight:bold;">Ziel-Gewicht (kg)</label><input type="number" id="p-target" placeholder="z.B. 75"></div>
                     <div><label>Größe (cm)</label><input type="number" id="p-height" placeholder="z.B. 180"></div>
                     <div><label>Alter</label><input type="number" id="p-age" placeholder="z.B. 30"></div>
                     <div><label>Geschlecht</label><select id="p-gender"><option value="male">Mann</option><option value="female">Frau</option></select></div>
@@ -288,7 +294,7 @@
                     <option value="1.55">Moderat Aktiv (3-5x Sport/Woche)</option>
                     <option value="1.725">Sehr Aktiv (6-7x Sport/Woche)</option>
                 </select>
-                <button onclick="window.saveProfile(this)" style="margin-top:20px;">Profil in Cloud Speichern</button>
+                <button onclick="window.saveProfile(this)" style="margin-top:20px;">Profil & Ziel Speichern</button>
             </div>
         </div>
     </main>
@@ -311,22 +317,23 @@
 
         // --- CENTRAL APPLICATION STATE ---
         const appState = {
-            userProfile: { weight: 0, height: 0, age: 0, gender: 'male', activity: 1.2 },
+            userProfile: { weight: 0, targetWeight: 0, height: 0, age: 0, gender: 'male', activity: 1.2 },
             sessionHistory: [],
             selectedMuscles: [],
             currentUsername: "",
             chartInstance: null,
             timer: { interval: null, seconds: 0 },
+            // ERWEITERTE DATENBANK (Varianz!)
             musclesDb: [
-                { id: 'chest', label: 'Brust', exercise: 'Bankdrücken' },
-                { id: 'back', label: 'Rücken', exercise: 'Latzug' },
-                { id: 'legs', label: 'Beine', exercise: 'Kniebeugen' },
-                { id: 'shoulders', label: 'Schulter', exercise: 'Military Press' },
-                { id: 'biceps', label: 'Bizeps', exercise: 'Curls' },
-                { id: 'triceps', label: 'Trizeps', exercise: 'Pushdowns' },
-                { id: 'abs', label: 'Bauch', exercise: 'Planks' }
+                { id: 'chest', label: 'Brust', exercises: ['Bankdrücken (Langhantel)', 'Kurzhantel Bankdrücken', 'Schrägbankdrücken', 'Butterfly Maschine', 'Liegestütze'] },
+                { id: 'back', label: 'Rücken', exercises: ['Latzug breit', 'Rudern am Kabelzug', 'Kurzhantel Rudern', 'Klimmzüge', 'Face Pulls'] },
+                { id: 'legs', label: 'Beine', exercises: ['Kniebeugen', 'Beinpresse', 'Ausfallschritte', 'Beinbeuger', 'Wadenheben'] },
+                { id: 'shoulders', label: 'Schulter', exercises: ['Military Press (Stehend)', 'Schulterdrücken (Sitzen)', 'Seitheben', 'Frontheben'] },
+                { id: 'biceps', label: 'Bizeps', exercises: ['Langhantel Curls', 'Hammer Curls', 'Konzentrations-Curls', 'Kabel-Curls'] },
+                { id: 'triceps', label: 'Trizeps', exercises: ['Trizeps Pushdowns', 'French Press', 'Dips', 'Überkopf-Strecken'] },
+                { id: 'abs', label: 'Bauch', exercises: ['Planks', 'Crunches', 'Beinheben', 'Russian Twists'] }
             ],
-             histSafeFoods: { carbs: ['Kartoffeln', 'Reis', 'Haferflocken', 'Quinoa'], protein: ['Huhn', 'Pute', 'Rind (frisch)', 'Seelachs', 'Eier'], veg: ['Brokkoli', 'Karotte', 'Zucchini', 'Gurke', 'Paprika'] }
+             histSafeFoods: { carbs: ['Kartoffeln', 'Reis', 'Haferflocken', 'Quinoa', 'Hirse'], protein: ['Huhn', 'Pute', 'Rind (frisch)', 'Seelachs', 'Eier'], veg: ['Brokkoli', 'Karotte', 'Zucchini', 'Gurke', 'Paprika', 'Spargel'] }
         };
 
         // --- GLOBAL FUNCTIONS ---
@@ -374,7 +381,7 @@
 
                 if (docSnap.exists()) {
                     const data = docSnap.data();
-                    if(data.profile) appState.userProfile = data.profile;
+                    if(data.profile) appState.userProfile = { ...appState.userProfile, ...data.profile }; // Merge defaults
                     if(data.history) appState.sessionHistory = data.history;
                 } else {
                     await setDoc(docRef, { profile: appState.userProfile, history: [] });
@@ -400,6 +407,7 @@
             setButtonLoading(btnElement, true);
 
             appState.userProfile.weight = parseFloat(document.getElementById('p-weight').value) || 0;
+            appState.userProfile.targetWeight = parseFloat(document.getElementById('p-target').value) || 0; // Neu
             appState.userProfile.height = parseFloat(document.getElementById('p-height').value) || 0;
             appState.userProfile.age = parseFloat(document.getElementById('p-age').value) || 0;
             appState.userProfile.gender = document.getElementById('p-gender').value;
@@ -409,6 +417,7 @@
                 const docRef = doc(db, "users", appState.currentUsername);
                 await setDoc(docRef, { profile: appState.userProfile }, { merge: true });
                 analyzeProfile();
+                // alert replaced with direct visual feedback in analyzeProfile
             } catch (e) {
                 alert("Fehler beim Speichern: " + e.message);
             } finally {
@@ -480,6 +489,7 @@
 
         function fillProfileInputs() {
             document.getElementById('p-weight').value = appState.userProfile.weight || '';
+            document.getElementById('p-target').value = appState.userProfile.targetWeight || '';
             document.getElementById('p-height').value = appState.userProfile.height || '';
             document.getElementById('p-age').value = appState.userProfile.age || '';
             document.getElementById('p-gender').value = appState.userProfile.gender;
@@ -488,14 +498,52 @@
 
         function analyzeProfile() {
             if(appState.userProfile.weight===0 || appState.userProfile.height===0) return;
+            
+            // 1. Grundumsatz & TDEE
             let bmr = (10 * appState.userProfile.weight) + (6.25 * appState.userProfile.height) - (5 * appState.userProfile.age);
             bmr += (appState.userProfile.gender === 'male' ? 5 : -161);
             const tdee = bmr * appState.userProfile.activity;
-            document.getElementById('cal-target').innerText = Math.round(tdee + 250);
 
-            const bmi = (appState.userProfile.weight / ((appState.userProfile.height/100)**2)).toFixed(1);
+            // 2. Ziel-Logik (Target Weight)
+            let goalKcal = Math.round(tdee);
+            let goalMode = "Erhalt";
+            let diff = 0;
+            const target = appState.userProfile.targetWeight;
+            const current = appState.userProfile.weight;
+
+            if (target > 0) {
+                diff = target - current;
+                if (diff > 0.5) {
+                    goalKcal += 300; // Moderater Aufbau
+                    goalMode = "Aufbau (+300)";
+                } else if (diff < -0.5) {
+                    goalKcal -= 400; // Defizit
+                    goalMode = "Defizit (-400)";
+                }
+            }
+
+            document.getElementById('cal-target').innerText = goalKcal;
+            document.getElementById('cal-mode').innerText = `kcal (${goalMode})`;
+
+            // 3. BMI & Goal Visualisierung
+            const bmi = (current / ((appState.userProfile.height/100)**2)).toFixed(1);
             document.getElementById('bmi-badge').innerText = "BMI: " + bmi;
             document.getElementById('bmi-badge').style.display = 'block';
+
+            document.getElementById('dash-weight-cur').innerText = current + "kg";
+            document.getElementById('dash-weight-goal').innerText = target ? target + "kg" : "--";
+            
+            const goalAdvice = document.getElementById('goal-advice');
+            if(diff < -0.5) {
+                goalAdvice.innerText = "Ziel: Fettabbau & Krafterhalt";
+                goalAdvice.style.color = "var(--primary)";
+            } else if (diff > 0.5) {
+                goalAdvice.innerText = "Ziel: Muskelaufbau & Progression";
+                goalAdvice.style.color = "var(--success)";
+            } else {
+                goalAdvice.innerText = "Ziel: Gewicht halten";
+                goalAdvice.style.color = "var(--text-muted)";
+            }
         }
 
         function updateChartData() {
@@ -568,12 +616,7 @@
         function updateAIAnalysis() {
              const out = document.getElementById('ai-output');
              if(appState.selectedMuscles.length===0) { out.innerText="Wähle Muskeln für Fokus-Analyse..."; return; }
-             let txt = `Fokus gesetzt auf: ${appState.selectedMuscles.map(m=> appState.musclesDb.find(x=>x.id===m).label).join(', ')}.`;
-             const hasPush = appState.selectedMuscles.some(m => ['chest','shoulders','triceps'].includes(m));
-             const hasPull = appState.selectedMuscles.some(m => ['back','biceps'].includes(m));
-             const hasLegs = appState.selectedMuscles.includes('legs');
-             if(hasPush && !hasPull) txt += "\n⚠️ Tipp: Zugübungen (Rücken/Bizeps) als Ausgleich ergänzen.";
-             if(!hasLegs && appState.selectedMuscles.length > 2) txt += "\n🦵 'Never skip leg day' - Beine nicht vergessen!";
+             let txt = `Fokus: ${appState.selectedMuscles.map(m=> appState.musclesDb.find(x=>x.id===m).label).join(', ')}.`;
              out.innerText = txt;
         }
 
@@ -582,26 +625,37 @@
             const sore = document.getElementById('soreness-level').value;
             const trend = document.getElementById('progress-trend').value;
             const box = document.getElementById('ai-recommendation');
+            
+            // Ziel-Kontext ermitteln
+            const target = appState.userProfile.targetWeight;
+            const current = appState.userProfile.weight;
+            let isCutting = (target > 0 && target < current);
+
             let freq = 3; 
             let splitType = "Ganzkörper (Basis)";
             let advice = "";
+            
             if (sore === 'high' || energy <= 3) {
-                 freq = 2; splitType = "Reduzierter GK (Regeneration)";
-                 advice = "Hoher Kater/Wenig Energie: Volumen & Frequenz reduziert.";
+                 freq = 2; splitType = "Erholung & Technik";
+                 advice = "Heute ruhig angehen lassen.";
             } else if (energy >= 8 && sore === 'none' && trend !== 'down') {
-                 freq = 4; splitType = "2er Split (Push/Pull oder OK/UK)";
-                 advice = "Top fit! Frequenz erhöht für optimalen Reiz.";
-            } else if (trend === 'up' && energy >= 6) {
-                 advice = "Guter Trend! Bleib dran, versuche Gewichte leicht zu steigern.";
+                 freq = 4; splitType = "2er Split (Oberkörper/Unterkörper)";
+                 advice = isCutting ? "Hohe Intensität, Pausen kurz halten." : "Volumen erhöhen für Max-Hypertrophie!";
+            } else {
+                 advice = isCutting ? "Fokus: Gewicht halten auf der Stange!" : "Versuche 1 Rep mehr als letztes Mal.";
             }
+            
             box.style.display = 'block';
-            box.innerHTML = `<strong><i class="fa-solid fa-wand-magic-sparkles"></i> KI Plan:</strong> ${splitType} (${freq}x/Woche).<br><span style="font-size:0.9rem; color:var(--text-muted)">${advice}</span>`;
-            generateRoutine(freq);
+            box.innerHTML = `<strong><i class="fa-solid fa-wand-magic-sparkles"></i> KI Plan:</strong> ${splitType}.<br><span style="font-size:0.9rem; color:var(--text-muted)">${advice}</span>`;
+            
+            // Pass context to generation
+            generateRoutine(freq, isCutting);
         };
 
-        function generateRoutine(freq) {
+        // --- ANGEPASSTE LOGIK (Version 6.3) ---
+        function generateRoutine(freq, isCutting) {
             const c = document.getElementById('routine-container'); c.innerHTML='';
-            let days = freq===2 ? ["GK A (Fokus Grundübungen)","GK B (Fokus Maschinen)"] :
+            let days = freq===2 ? ["GK A (Grundübungen)","GK B (Maschinen)"] :
                        freq===4 ? ["Oberkörper A","Unterkörper A","Oberkörper B","Unterkörper B"] :
                        ["GK Montag","GK Mittwoch","GK Freitag"];
 
@@ -609,39 +663,51 @@
                 const div = document.createElement('div');
                 div.className = 'card'; div.style.marginBottom='15px'; div.style.padding='1.2rem';
                 let pool = [...appState.musclesDb]; 
+                
+                // Split Filter
                 if(dName.includes("Oberkörper") || dName.includes("Push") || dName.includes("Pull")) {
                      pool = pool.filter(m => !['legs','abs'].includes(m.id));
                 } else if (dName.includes("Unterkörper")) {
                      pool = pool.filter(m => ['legs','abs'].includes(m.id));
                 }
-                if(dName.includes("GK")) pool.sort(() => Math.random() - 0.5);
+                
+                // Randomize for Variety
+                pool.sort(() => Math.random() - 0.5);
 
                 let html = `<h4 style="border-bottom:1px solid #334155; padding-bottom:10px;">Tag ${idx+1}: ${dName}</h4>`;
-                pool.slice(0, 4).forEach(ex => {
-                    let lastWeight = '', lastRepsPlaceholder = '10-12';
+                
+                // Select Exercises (up to 4 per day)
+                pool.slice(0, 4).forEach(muscleGroup => {
+                    // Wähle zufällige Übung aus dem Array dieses Muskels (Varianz!)
+                    const exName = muscleGroup.exercises[Math.floor(Math.random() * muscleGroup.exercises.length)];
+                    
+                    let lastWeight = '', lastRepsPlaceholder = isCutting ? '6-8' : '8-12';
                     let suggestionInfo = "";
                     const reversedHistory = [...appState.sessionHistory].reverse();
-                    const lastSessionWithEx = reversedHistory.find(s => s.exercises && s.exercises.some(e => e.name === ex.exercise));
+                    
+                    // Suche nach der spezifischen Übung im Verlauf
+                    const lastSessionWithEx = reversedHistory.find(s => s.exercises && s.exercises.some(e => e.name === exName));
 
                     if(lastSessionWithEx) {
-                        const prevExData = lastSessionWithEx.exercises.find(e => e.name === ex.exercise);
+                        const prevExData = lastSessionWithEx.exercises.find(e => e.name === exName);
                         if(prevExData) {
                             lastWeight = prevExData.weight;
-                            if(prevExData.rpe <= 7) {
-                                lastWeight += 2.5; 
-                                suggestionInfo = `<span style="font-size:0.7rem; color:var(--success); margin-left:5px;"><i class="fa-solid fa-arrow-up"></i> +2.5kg (Letztes Mal war RPE ${prevExData.rpe})</span>`;
-                            } else if (prevExData.rpe >= 9) {
-                                suggestionInfo = `<span style="font-size:0.7rem; color:var(--text-muted); margin-left:5px;"><i class="fa-solid fa-left-right"></i> Halten (Letztes Mal war RPE ${prevExData.rpe})</span>`;
-                            }
+                            if(prevExData.rpe <= 7 && !isCutting) {
+                                lastWeight += 2.5; // Nur im Aufbau aggressiv steigern
+                                suggestionInfo = `<span style="font-size:0.7rem; color:var(--success);"><i class="fa-solid fa-arrow-up"></i> +2.5kg</span>`;
+                            } 
                             lastRepsPlaceholder = prevExData.reps; 
                         }
                     }
 
+                    // Angepasste Sätze je nach Ziel
+                    const sets = isCutting ? "2-3 Sets (Schwer)" : "3-4 Sets (Volumen)";
+
                     html += `
-                    <div class="workout-item" data-ex="${ex.exercise}">
+                    <div class="workout-item" data-ex="${exName}">
                         <div class="workout-header" style="display:flex; justify-content:space-between; align-items:center;">
-                            <span style="font-weight:600;">${ex.exercise} ${suggestionInfo}</span>
-                            <span style="font-size:0.75rem;color:#94a3b8; background:var(--input-bg); padding:2px 8px; border-radius:10px;">Ziel: 3 Sets</span>
+                            <span style="font-weight:600;">${exName} ${suggestionInfo}</span>
+                            <span style="font-size:0.75rem;color:#94a3b8; background:var(--input-bg); padding:2px 8px; border-radius:10px;">${sets}</span>
                         </div>
                         <div class="tracker-row">
                             <input type="number" class="t-weight" placeholder="kg" value="${lastWeight}" step="0.5">
@@ -652,7 +718,7 @@
                                 <option value="9">RPE 9 (1 im Tank)</option>
                                 <option value="10">RPE 10 (Limit)</option>
                             </select>
-                            <button class="timer-btn" onclick="window.startTimer(90)"><i class="fa-solid fa-stopwatch"></i></button>
+                            <button class="timer-btn" onclick="window.startTimer(${isCutting ? 120 : 90})"><i class="fa-solid fa-stopwatch"></i></button>
                         </div>
                     </div>`;
                 });
